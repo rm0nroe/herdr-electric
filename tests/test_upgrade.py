@@ -24,7 +24,7 @@ PLUGIN_STUB = '''elif 'plugin' in sys.argv or sys.argv[-2:] == ['server', 'stop'
   print(json.dumps({'id': 'cli:plugin', 'result': {'plugins': [json.loads(state.read_text())] if state.exists() else [], 'type': 'plugin_list'}}))
  elif rest[:1] == ['install']:
   state.write_text(json.dumps({'plugin_id': 'herdr-electrified', 'source': {'kind': 'github', 'owner': 'rm0nroe',
-                   'repo': 'herdr-electrified', 'requested_ref': rest[rest.index('--ref') + 1]}}))
+                   'repo': rest[1].split('/')[1], 'requested_ref': rest[rest.index('--ref') + 1]}}))
 else: sys.exit(2)
 '''
 
@@ -190,7 +190,7 @@ class Upgrade(unittest.TestCase):
         with unittest.mock.patch('herdr_electrified.cli.os.execv', side_effect=SystemExit(0)) as execv, self.assertRaises(SystemExit):
             self.run_cli('upgrade', '--yes', env=env)
         self.assertEqual((self.root / 'uv-calls.txt').read_text().splitlines(),
-                         ['tool dir', 'tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electrified@v99.0.0'])
+                         ['tool dir', 'tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v99.0.0'])
         # The new version finishes the job, so its own install, plugin and cleanup logic runs.
         execv.assert_called_once_with(sys.executable, [sys.executable, '-m', 'herdr_electrified.cli', 'upgrade', '--yes', '--json'])
 
@@ -204,11 +204,24 @@ class Upgrade(unittest.TestCase):
         self.assertEqual((self.root / 'uv-calls.txt').read_text().splitlines(), ['tool dir'])
         execv.assert_not_called()
 
+    def test_homebrew_upgrade_names_both_commands_without_running_uv(self):
+        self.release('v99.0.0')
+        keg = self.root / 'Cellar/herdr-electrified/1.10.0'
+        prefix = keg / 'libexec'
+        prefix.mkdir(parents=True)
+        (keg / 'INSTALL_RECEIPT.json').write_text('{}')
+        env = self.uv(str(self.root))
+        with unittest.mock.patch.object(sys, 'prefix', str(prefix)):
+            code, result = self.run_cli('upgrade', '--yes', env=env)
+        self.assertEqual(code, 1, result)
+        self.assertIn('brew upgrade rm0nroe/tap/herdr-electrified, then herdr-electrified upgrade', result['error'])
+        self.assertFalse((self.root / 'uv-calls.txt').exists())
+
     def test_upgrade_without_uv_names_the_command_to_run(self):
         self.release('v99.0.0')
         code, result = self.run_cli('upgrade', '--yes')
         self.assertEqual(code, 1, result)
-        self.assertIn('uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electrified@v99.0.0', result['error'])
+        self.assertIn('uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v99.0.0', result['error'])
 
     def test_current_upgrade_reapplies_updates_the_plugin_and_cleans_up(self):
         self.release('v' + __version__)
@@ -224,7 +237,7 @@ class Upgrade(unittest.TestCase):
         self.assertEqual([install['bundle'] for install in result['installs']], ['0.1.0'])
         self.assertFalse(old.exists())
         self.assertEqual(result['removed'], [old.name])
-        self.assertIn(f'plugin install rm0nroe/herdr-electrified/plugin --ref v{__version__} --yes', self.calls()[-1])
+        self.assertIn(f'plugin install rm0nroe/herdr-electric/plugin --ref v{__version__} --yes', self.calls()[-1])
         self.assertEqual(result['plugin'], f'v{__version__}')
         self.assertEqual(self.notice.read_text(), '')
         # Nothing left to do: a second run changes nothing and reinstalls no plugin.
@@ -232,6 +245,13 @@ class Upgrade(unittest.TestCase):
         code, result = self.run_cli('upgrade', '--yes')
         self.assertEqual((code, result['plugin'], result['removed']), (0, None, []), result)
         self.assertEqual(len(self.calls()), calls + 1)  # only the plugin list
+
+    def test_upgrade_updates_a_plugin_from_the_canonical_repository(self):
+        self.release('v' + __version__)
+        self.assertEqual(self.run_cli('install', '--yes')[0], 0)
+        (self.root / 'plugin.json').write_text(json.dumps({'source': {
+            'kind': 'github', 'owner': 'rm0nroe', 'repo': 'herdr-electric', 'requested_ref': 'v1.9.1'}}))
+        self.assertEqual(self.run_cli('upgrade', '--yes')[1]['plugin'], f'v{__version__}')
 
     def test_plugin_linked_locally_or_absent_is_left_alone(self):
         self.release('v' + __version__)

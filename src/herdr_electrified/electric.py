@@ -23,13 +23,13 @@ REQUIRED = {'herdr', 'codex/bin/codex', 'codex/bin/codex-code-mode-host',
             'codex/codex-path/rg', 'codex/codex-resources/zsh/bin/zsh', 'themes/codex-electric.tmTheme'}
 GHOSTTY_APPS = ('/Applications', '~/Applications')
 OPEN = '/usr/bin/open'
-REPO = 'rm0nroe/herdr-electrified'
+REPO = 'rm0nroe/herdr-electric'
 LATEST_URL = f'https://api.github.com/repos/{REPO}/releases/latest'
 # Pinned at release: install trusts only these exact archives.
-BUNDLE = 'herdr-electrified-0.10.0-macos-arm64'
+BUNDLE = 'herdr-electrified-0.11.0-macos-arm64'
 BUNDLE_URL = f'https://github.com/{REPO}/releases/download/v{__version__}/{BUNDLE}.tar.gz'
-VERSIONS = ('0.1.0', '0.2.0', '0.2.1', '0.2.2', '0.2.3', '0.3.0', '0.4.0', '0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0')
-BUNDLE_SHA = '3f58d6396d079adc0c2064a7f59c9aa63b86ed900888d87ab6162509d46124e5'
+VERSIONS = ('0.1.0', '0.2.0', '0.2.1', '0.2.2', '0.2.3', '0.3.0', '0.4.0', '0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0')
+BUNDLE_SHA = '71120012864b8a187509f5e19323c8d9eea9582bd0808668b0bb80e2f1a192a1'
 FONT_URL = 'https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/JetBrainsMono.tar.xz'
 FONT_SHA = '04d5e8f903693f9dd13e16f867e994834e681eb3c72c0d337a770dcda09010cf'
 FONTS = [f'JetBrainsMonoNerdFontMono-{style}.ttf' for style in ('Regular', 'Bold', 'Italic', 'BoldItalic')]

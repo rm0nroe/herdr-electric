@@ -530,6 +530,9 @@ def upgrade(args):
 
 def reinstall(newest, args):
     """Replace this CLI with the release, then hand off to it: the new version runs its own upgrade steps."""
+    prefix = Path(sys.prefix).resolve()
+    if prefix.parent.parent.name == 'herdr-electrified' and (prefix.parent / 'INSTALL_RECEIPT.json').is_file():
+        raise ValueError('Run brew upgrade rm0nroe/tap/herdr-electrified, then herdr-electrified upgrade.')
     command = ['uv', 'tool', 'install', '--python', '3.12', f'git+https://github.com/{electric.REPO}@v{newest}']
     uv = shutil.which('uv')
     if not uv:
@@ -554,7 +557,8 @@ def sync_plugin(herdr):
     plugins = answer['result']['plugins']
     source = plugins[0]['source'] if plugins else {}
     tag = f'v{__version__}'
-    if source.get('kind') != 'github' or f"{source.get('owner')}/{source.get('repo')}" != electric.REPO or source.get('requested_ref') == tag:
+    repository = f"{source.get('owner')}/{source.get('repo')}"
+    if source.get('kind') != 'github' or repository not in (electric.REPO, 'rm0nroe/herdr-electrified') or source.get('requested_ref') == tag:
         return None
     installed = subprocess.run([*herdr, 'plugin', 'install', f'{electric.REPO}/plugin', '--ref', tag, '--yes'],
                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=600)

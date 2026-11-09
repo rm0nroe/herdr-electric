@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/rm0nroe/herdr-electrified/main/assets/banner.svg" alt="herdr-electrified: reversible Herdr appearance, plus custom Herdr and Codex renderers" width="100%">
+  <img src="https://raw.githubusercontent.com/rm0nroe/herdr-electric/main/assets/banner.svg" alt="herdr-electrified: reversible Herdr appearance, plus custom Herdr and Codex renderers" width="100%">
 </p>
 
 # Herdr Electrified
@@ -23,20 +23,32 @@ its theme.
 ## Requirements
 
 - macOS arm64. Linux, Windows and Intel Macs are unsupported.
-- Git and [uv](https://docs.astral.sh/uv/). uv provides Python 3.12; no Rust,
-  Zig or Xcode needed.
+- Homebrew or Git and [uv](https://docs.astral.sh/uv/). Either install method provides Python 3.12. The optional Herdr plugin also requires uv.
 - Codex, Claude Code and OpenCode are optional and keep their own sign-in.
 
 Electric is verified on macOS 26.6 and 26.5.2 (and with Claude Code only on
 macOS 27.0). The settings preset and plugin are verified with stock Herdr 0.8.2
-and 0.9.3.
+and 0.9.3. Stock 0.9.5 also passes native config validation.
 
 ## Install Electric
+
+With Homebrew:
+
+```sh
+brew install rm0nroe/tap/herdr-electrified
+export PATH="$(brew --prefix)/bin:$HOME/.local/bin:$PATH"
+herdr-electrified install
+```
+
+Homebrew installs the CLI. The second command downloads the verified bundle and
+asks before applying settings. Keep `~/.local/bin` on PATH for the generated launchers.
+
+With uv:
 
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
-uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electrified@v1.9.1
+uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.0
 herdr-electrified install
 ```
 
@@ -45,7 +57,7 @@ window with the Electric look; your other Ghostty windows keep your own config.
 Without Ghostty, run it from a new terminal window (not from inside a Herdr
 pane; Herdr refuses to nest).
 
-`install` downloads the Electric bundle 0.10.0 (patched Herdr 0.9.3, patched
+`install` downloads the Electric bundle 0.11.0 (patched Herdr 0.9.5, patched
 Codex 0.162.0, JetBrainsMono Nerd Font Mono 3.5.1) into
 `~/.local/share/herdr-electrified/bundles/`, refuses it unless its SHA-256
 matches the checksum pinned in the CLI, lists the files it will write, and
@@ -60,7 +72,8 @@ directory by absolute path, so don't move or delete it.
 herdr-electrified upgrade
 ```
 
-`upgrade` installs the latest release of the CLI with uv, then reapplies
+Homebrew users run `brew upgrade rm0nroe/tap/herdr-electrified` first.
+For uv installations, `upgrade` updates the CLI automatically. It then reapplies
 whatever you installed (Electric or settings-only, with the options you chose)
 and asks before writing each one, like `install`. It also moves a Herdr plugin
 installed from this repository to the same release and removes old Electric
@@ -81,7 +94,7 @@ v1.8.0 and earlier have no `upgrade`. To leave them, rerun the install with the
 new tag:
 
 ```sh
-uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electrified@v1.9.1 && herdr-electrified install
+uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.0 && herdr-electrified install
 ```
 
 ### Manual install
@@ -90,23 +103,25 @@ To verify the archive yourself:
 
 ```sh
 mkdir -p ~/.local/share/herdr-electrified/bundles && cd ~/.local/share/herdr-electrified/bundles
-curl -fLO https://github.com/rm0nroe/herdr-electrified/releases/download/v1.9.1/herdr-electrified-0.10.0-macos-arm64.tar.gz
-curl -fLO https://github.com/rm0nroe/herdr-electrified/releases/download/v1.9.1/SHA256SUMS
+curl -fLO https://github.com/rm0nroe/herdr-electric/releases/download/v1.10.0/herdr-electrified-0.11.0-macos-arm64.tar.gz
+curl -fLO https://github.com/rm0nroe/herdr-electric/releases/download/v1.10.0/SHA256SUMS
 shasum -a 256 -c SHA256SUMS
-gh attestation verify herdr-electrified-0.10.0-macos-arm64.tar.gz --repo rm0nroe/herdr-electrified
-tar -xzf herdr-electrified-0.10.0-macos-arm64.tar.gz
-herdr-electrified preview-apply --electric ./herdr-electrified-0.10.0-macos-arm64
-herdr-electrified apply --electric ./herdr-electrified-0.10.0-macos-arm64
+gh attestation verify herdr-electrified-0.11.0-macos-arm64.tar.gz --repo rm0nroe/herdr-electric
+tar -xzf herdr-electrified-0.11.0-macos-arm64.tar.gz
+herdr-electrified preview-apply --electric ./herdr-electrified-0.11.0-macos-arm64
+herdr-electrified apply --electric ./herdr-electrified-0.11.0-macos-arm64
 ```
 
+This release rebuilds Herdr and reuses the signed Codex executable from v1.9.1 after verifying the prior archive and its provenance.
+
 The archive is built by this repository's public GitHub Actions workflow
-([build-electric.yml](https://github.com/rm0nroe/herdr-electrified/blob/main/.github/workflows/build-electric.yml)),
+([build-electric.yml](https://github.com/rm0nroe/herdr-electric/blob/main/.github/workflows/build-electric.yml)),
 and `gh attestation verify` checks its build provenance. The binaries are not notarized. A browser download marks the archive as
 quarantined and `apply` refuses it. After the checksum passes, clear the mark
 and apply again:
 
 ```sh
-xattr -dr com.apple.quarantine ./herdr-electrified-0.10.0-macos-arm64
+xattr -dr com.apple.quarantine ./herdr-electrified-0.11.0-macos-arm64
 ```
 
 ## What Electric changes
@@ -156,7 +171,7 @@ get this; use `codex-electric`, or run
 For stock Herdr on PATH, without the bundle:
 
 ```sh
-uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electrified@v1.9.1
+uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.0
 herdr-electrified install --settings-only
 ```
 
@@ -190,25 +205,27 @@ herdr-electric plugin uninstall herdr-electrified
 herdr-electrified undo
 ```
 
+If you installed with Homebrew, run `brew uninstall herdr-electrified` after undo.
+
 Undo restores every file it changed. Files you edited since are kept and
 reported as conflicts. Undo refuses while Herdr Electric is running, and leaves
 the downloaded bundle and fonts in `~/.local/share/herdr-electrified` for you to
 delete. If the bundle is already gone, pass any Herdr executable:
 `herdr-electrified undo --herdr-bin /path/to/herdr`.
 
-Details on targets, conflicts and recovery are in [reference](https://github.com/rm0nroe/herdr-electrified/blob/main/docs/reference.md).
+Details on targets, conflicts and recovery are in [reference](https://github.com/rm0nroe/herdr-electric/blob/main/docs/reference.md).
 
 ## Herdr plugin
 
 ```sh
-herdr-electric plugin install rm0nroe/herdr-electrified/plugin --ref v1.9.1 --yes
+herdr-electric plugin install rm0nroe/herdr-electric/plugin --ref v1.10.0 --yes
 ```
 
 Install the appearance first; the plugin only previews, checks and undoes it.
 Herdr has no plugin menu, so Herdr Electric binds keys to its actions:
 `prefix+shift+c` checks, `prefix+shift+v` previews and `prefix+shift+u` undoes.
 For stock Herdr, add the same bindings yourself; see
-[reference](https://github.com/rm0nroe/herdr-electrified/blob/main/docs/reference.md#plugin-keys).
+[reference](https://github.com/rm0nroe/herdr-electric/blob/main/docs/reference.md#plugin-keys).
 Each action opens a popup with its output: `q` closes it. Undo shows what it
 will restore and asks before writing. Inside Herdr Electric, Undo can only show
 what it would restore: quit Electric first, then run `herdr-electrified undo`.
@@ -226,14 +243,14 @@ what it would restore: quit Electric first, then run `herdr-electrified undo`.
 - iTerm2 shows its own "Claude Code integration" banner over the top rows
   until you dismiss it; that banner is iTerm2's, not Electric's.
 - The Electric binaries are built in public CI from the pinned sources and the
-  patches in [`patches/`](https://github.com/rm0nroe/herdr-electrified/tree/main/patches), and attested. A bit-identical rebuild has
+  patches in [`patches/`](https://github.com/rm0nroe/herdr-electric/tree/main/patches), and attested. A bit-identical rebuild has
   not been established. Electric Codex shows "herdr-electrified build" in its
   header so it is not mistaken for OpenAI's release.
-- The bundled Herdr reports the same `--version` as stock Herdr 0.9.3.
+- The bundled Herdr reports the same `--version` as stock Herdr 0.9.5.
 - A single automatic Herdr tab can omit its title by design; a named tab shows
   it.
 
-Build instructions are in [building](https://github.com/rm0nroe/herdr-electrified/blob/main/docs/building.md).
+Build instructions are in [building](https://github.com/rm0nroe/herdr-electric/blob/main/docs/building.md).
 
 ## Develop
 
@@ -247,8 +264,8 @@ The tests use temporary configs. The native check only runs `config check`. Add 
 
 ## License
 
-Apache-2.0, see [LICENSE](https://github.com/rm0nroe/herdr-electrified/blob/main/LICENSE). Colors from
+Apache-2.0, see [LICENSE](https://github.com/rm0nroe/herdr-electric/blob/main/LICENSE). Colors from
 [Catppuccin](https://github.com/catppuccin/catppuccin) (MIT) and the Rye
-wordmark (SIL OFL 1.1) are credited in [NOTICE](https://github.com/rm0nroe/herdr-electrified/blob/main/NOTICE). The Electric archive
+wordmark (SIL OFL 1.1) are credited in [NOTICE](https://github.com/rm0nroe/herdr-electric/blob/main/NOTICE). The Electric archive
 includes third-party notices under `licenses/`. This project is independent of
 the Herdr, Codex and Claude maintainers.

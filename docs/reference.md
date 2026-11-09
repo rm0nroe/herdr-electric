@@ -184,9 +184,11 @@ still wins over the theme selection. Undo removes all three files.
 ## Upgrade
 
 `herdr-electrified upgrade` asks GitHub for the latest release
-(`api.github.com/repos/rm0nroe/herdr-electrified/releases/latest`; drafts and
-pre-releases never count). When it is newer, it runs
-`uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electrified@<tag>`
+(`api.github.com/repos/rm0nroe/herdr-electric/releases/latest`; drafts and
+pre-releases never count). For a Homebrew install, run
+`brew upgrade rm0nroe/tap/herdr-electrified`, then `herdr-electrified upgrade`
+to reapply your recorded settings. When a uv install is behind, the CLI runs
+`uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@<tag>`
 and hands over to the new version, which does the rest, so a release can fix its
 own upgrade steps. A copy not installed with `uv tool` is refused with the
 command to run instead.
@@ -256,5 +258,5 @@ Undo removes the `herdr-electric` launcher. If you already ran undo, remove the
 plugin with the bundled Herdr, which reads the same plugin list:
 
 ```sh
-~/.local/share/herdr-electrified/bundles/herdr-electrified-0.10.0-macos-arm64/herdr plugin uninstall herdr-electrified
+~/.local/share/herdr-electrified/bundles/herdr-electrified-0.11.0-macos-arm64/herdr plugin uninstall herdr-electrified
 ```
