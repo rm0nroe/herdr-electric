@@ -534,7 +534,7 @@ index 1ef9879..0319212 100644
 +    assert!(top.iter().any(|cell| cell.bg == reset), "{:?}", top.iter().map(|c| c.bg).collect::<Vec<_>>());
 +}
 diff --git a/src/client/terminal_setup.rs b/src/client/terminal_setup.rs
-index 8a0a45e..f630da4 100644
+index 8a0a45e..36568a0 100644
 --- a/src/client/terminal_setup.rs
 +++ b/src/client/terminal_setup.rs
 @@ -28,8 +28,8 @@ use super::frame_output::clear_received_kitty_graphics;
@@ -719,6 +719,14 @@ index 8a0a45e..f630da4 100644
                  #[cfg(windows)]
                  &self.restore_windows_input_mode,
              );
+@@ -978,6 +1034,7 @@ mod tests {
+             reset_modify_other_keys: modify_other_keys_sequence.is_some(),
+             modify_other_keys_sequence,
+             reset_host_color_scheme_reports: false,
++            reset_host_colors: false,
+             restore_claimed: Arc::new(AtomicBool::new(false)),
+             // Keep Drop from writing restore sequences to the test's stdout.
+             restored: true,
 diff --git a/src/client/tests/mod.rs b/src/client/tests/mod.rs
 index 323af2f..1d50a15 100644
 --- a/src/client/tests/mod.rs
