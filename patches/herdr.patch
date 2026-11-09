@@ -1,8 +1,8 @@
 diff --git a/src/app/mod.rs b/src/app/mod.rs
-index 8fad961c..ee1be437 100644
+index 6effa3a..71dd911 100644
 --- a/src/app/mod.rs
 +++ b/src/app/mod.rs
-@@ -521,6 +521,8 @@ impl App {
+@@ -572,6 +572,8 @@ impl App {
              next_plugin_command_log_id: 1,
              plugin_commands_in_flight: 0,
              host_terminal_theme: crate::terminal_theme::TerminalTheme::default(),
@@ -11,7 +11,7 @@ index 8fad961c..ee1be437 100644
              host_cell_size: crate::kitty_graphics::HostCellSize::default(),
              session_dirty: false,
              terminal_runtime_shutdowns: Vec::new(),
-@@ -627,6 +629,11 @@ impl App {
+@@ -682,6 +684,11 @@ impl App {
          };
          app.configure_tab_bar_status(&config.ui.tab_bar_right, &config.ui.tab_bar_right_separator);
          app.configure_window_title(&config.ui.window_title);
@@ -20,10 +20,10 @@ index 8fad961c..ee1be437 100644
 +            app.set_host_terminal_theme(crate::terminal_theme::TerminalTheme::default());
 +            app.set_host_terminal_appearance_state(None, false);
 +        }
-         app
+         app.refresh_restored_workspace_git_metadata();
+         Ok(app)
      }
- 
-@@ -1338,6 +1345,50 @@ mod tests {
+@@ -1402,6 +1409,50 @@ mod tests {
          assert!(app.event_rx.try_recv().is_err());
      }
  
@@ -75,7 +75,7 @@ index 8fad961c..ee1be437 100644
      fn startup_uses_configured_agent_panel_sort() {
          let mut config = Config::default();
 diff --git a/src/app/state.rs b/src/app/state.rs
-index 65c06a6c..572bc9c2 100644
+index f30279d..3199038 100644
 --- a/src/app/state.rs
 +++ b/src/app/state.rs
 @@ -881,6 +881,8 @@ pub struct AppState {
@@ -87,7 +87,7 @@ index 65c06a6c..572bc9c2 100644
      /// Last known foreground host terminal cell size in pixels.
      pub(crate) host_cell_size: crate::kitty_graphics::HostCellSize,
      /// Set when a persisted session snapshot would change.
-@@ -1101,6 +1103,7 @@ impl AppState {
+@@ -1117,6 +1119,7 @@ impl AppState {
              next_plugin_command_log_id: 1,
              plugin_commands_in_flight: 0,
              host_terminal_theme: TerminalTheme::default(),
@@ -96,7 +96,7 @@ index 65c06a6c..572bc9c2 100644
              session_dirty: false,
              terminal_runtime_shutdowns: Vec::new(),
 diff --git a/src/app/theme_sync.rs b/src/app/theme_sync.rs
-index ed0f632d..aea1b14a 100644
+index ed0f632..aea1b14 100644
 --- a/src/app/theme_sync.rs
 +++ b/src/app/theme_sync.rs
 @@ -6,6 +6,9 @@ impl App {
@@ -137,7 +137,7 @@ index ed0f632d..aea1b14a 100644
          let (palette, theme_name) = super::resolve_effective_theme(
              &self.state.theme_runtime,
 diff --git a/src/client/mod.rs b/src/client/mod.rs
-index d55e4c48..11113743 100644
+index f55db19..31010f0 100644
 --- a/src/client/mod.rs
 +++ b/src/client/mod.rs
 @@ -76,7 +76,8 @@ use terminal_geometry::{
@@ -150,8 +150,8 @@ index d55e4c48..11113743 100644
  };
  
  fn refresh_host_mouse_capture(enabled: bool, sgr_pixels: bool) {
-@@ -185,6 +186,12 @@ fn run_client_with_mode(
-             .with_local_endpoint(&socket_path)
+@@ -202,6 +203,12 @@ fn run_client_with_mode(
+             .with_process_endpoint_preferences(&socket_path)
      });
      let mouse_capture = loaded_config.config.ui.mouse_capture;
 +    let host_colors = loaded_config
@@ -163,8 +163,8 @@ index d55e4c48..11113743 100644
      let mouse_scroll_lines = loaded_config.config.ui.mouse_scroll_lines();
      let redraw_on_focus_gained = loaded_config.config.ui.redraw_on_focus_gained;
      let host_cursor = loaded_config.config.ui.host_cursor;
-@@ -298,9 +305,9 @@ fn run_client_with_mode(
-     // The federated shell can show connection notices without any server snapshot.
+@@ -261,9 +268,9 @@ fn run_client_with_mode(
+ 
      let direct_attach = attach_escape.is_some();
      let mut terminal_guard = if direct_attach {
 -        setup_direct_attach_terminal(mouse_capture)
@@ -176,7 +176,7 @@ index d55e4c48..11113743 100644
      .map_err(|err| {
          eprintln!("herdr: failed to set up terminal: {err}");
 diff --git a/src/client/shell.rs b/src/client/shell.rs
-index 2d180443..daa175d1 100644
+index 2d18044..daa175d 100644
 --- a/src/client/shell.rs
 +++ b/src/client/shell.rs
 @@ -236,6 +236,11 @@ fn status_color(
@@ -192,7 +192,7 @@ index 2d180443..daa175d1 100644
      match palette.panel_bg {
          ratatui::style::Color::Reset => palette.surface_dim,
 diff --git a/src/client/shell/agent_sidebar.rs b/src/client/shell/agent_sidebar.rs
-index e43ab8cc..c7d29b53 100644
+index e43ab8c..c7d29b5 100644
 --- a/src/client/shell/agent_sidebar.rs
 +++ b/src/client/shell/agent_sidebar.rs
 @@ -108,11 +108,12 @@ pub(super) fn render_agent_panel_header(
@@ -245,7 +245,7 @@ index e43ab8cc..c7d29b53 100644
          );
      }
 diff --git a/src/client/shell/composition.rs b/src/client/shell/composition.rs
-index b7ab4a96..e68d264b 100644
+index b7ab4a9..e68d264 100644
 --- a/src/client/shell/composition.rs
 +++ b/src/client/shell/composition.rs
 @@ -720,6 +720,18 @@ impl ClientShellState {
@@ -268,7 +268,7 @@ index b7ab4a96..e68d264b 100644
          Some(crate::client::frame_output::ComposedFrame { frame, graphics })
      }
 diff --git a/src/client/shell/config.rs b/src/client/shell/config.rs
-index bfa1fb2f..065e7821 100644
+index 04a3ddb..c5bda9d 100644
 --- a/src/client/shell/config.rs
 +++ b/src/client/shell/config.rs
 @@ -158,6 +158,11 @@ impl ClientShellConfig {
@@ -284,7 +284,7 @@ index bfa1fb2f..065e7821 100644
          }
      }
 diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_sidebar.rs
-index 96982487..48020fce 100644
+index 9698248..48020fc 100644
 --- a/src/client/shell/endpoint_sidebar.rs
 +++ b/src/client/shell/endpoint_sidebar.rs
 @@ -471,6 +471,7 @@ pub(super) fn render_expanded(
@@ -296,7 +296,7 @@ index 96982487..48020fce 100644
                      config.status_indicators,
                      entry,
 diff --git a/src/client/shell/sidebar.rs b/src/client/shell/sidebar.rs
-index f94f6bdc..a4a9fb22 100644
+index 46c3a1a..ba09d34 100644
 --- a/src/client/shell/sidebar.rs
 +++ b/src/client/shell/sidebar.rs
 @@ -215,11 +215,12 @@ pub(crate) fn render_sidebar(
@@ -341,7 +341,7 @@ index f94f6bdc..a4a9fb22 100644
      hits.sidebar_toggle = Rect::new(
          area.right().saturating_sub(2),
          area.bottom().saturating_sub(1),
-@@ -655,6 +660,7 @@ pub(in crate::client::shell) fn workspace_rows(
+@@ -692,6 +697,7 @@ pub(in crate::client::shell) fn workspace_rows(
  pub(in crate::client::shell) fn render_workspace_rows(
      buffer: &mut Buffer,
      area: Rect,
@@ -349,7 +349,7 @@ index f94f6bdc..a4a9fb22 100644
      status: crate::api::schema::AgentStatus,
      indicators: crate::config::StatusIndicatorStyle,
      entry: &WorkspaceEntry,
-@@ -665,12 +671,14 @@ pub(in crate::client::shell) fn render_workspace_rows(
+@@ -702,12 +708,14 @@ pub(in crate::client::shell) fn render_workspace_rows(
      dragged: bool,
      palette: &Palette,
  ) {
@@ -365,7 +365,7 @@ index f94f6bdc..a4a9fb22 100644
          if entry.indented {
              let prefix = if row_index == 0 {
                  if entry.last_child {
-@@ -687,7 +695,7 @@ pub(in crate::client::shell) fn render_workspace_rows(
+@@ -724,7 +732,7 @@ pub(in crate::client::shell) fn render_workspace_rows(
                  buffer,
                  x,
                  y,
@@ -374,7 +374,7 @@ index f94f6bdc..a4a9fb22 100644
                  prefix,
                  Style::default().fg(palette.overlay0),
              );
-@@ -724,12 +732,10 @@ pub(in crate::client::shell) fn render_workspace_rows(
+@@ -761,12 +769,10 @@ pub(in crate::client::shell) fn render_workspace_rows(
              secondary_style,
              Style::default().fg(palette.overlay1),
              palette,
@@ -391,7 +391,7 @@ index f94f6bdc..a4a9fb22 100644
  
      let background = if selected {
 diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
-index c170c9b0..f15a3b0e 100644
+index 5a73292..f49cad5 100644
 --- a/src/client/shell/state.rs
 +++ b/src/client/shell/state.rs
 @@ -50,6 +50,8 @@ pub(crate) struct ClientShellConfig {
@@ -404,7 +404,7 @@ index c170c9b0..f15a3b0e 100644
  }
  
 diff --git a/src/client/shell/tabs.rs b/src/client/shell/tabs.rs
-index 3fdcf7dc..3f80808d 100644
+index 3fdcf7d..3f80808 100644
 --- a/src/client/shell/tabs.rs
 +++ b/src/client/shell/tabs.rs
 @@ -123,6 +123,17 @@ pub(crate) fn render_tab_bar(
@@ -426,7 +426,7 @@ index 3fdcf7dc..3f80808d 100644
          first_visible.get_or_insert(index);
          last_visible = Some(index);
 diff --git a/src/client/shell/tests/agents_worktrees_notifications.rs b/src/client/shell/tests/agents_worktrees_notifications.rs
-index 5b8b1224..302df4a5 100644
+index df09f46..12f74b9 100644
 --- a/src/client/shell/tests/agents_worktrees_notifications.rs
 +++ b/src/client/shell/tests/agents_worktrees_notifications.rs
 @@ -148,7 +148,7 @@ fn grouped_worktrees_render_parent_branch_and_indented_child() {
@@ -438,7 +438,7 @@ index 5b8b1224..302df4a5 100644
      assert_eq!(
          collapsed.cells[status_cell].fg,
          crate::protocol::color_to_u32(state.config.palette.red)
-@@ -504,7 +504,8 @@ fn agent_sidebar_honors_priority_symbols_tokens_and_stable_hits() {
+@@ -724,7 +724,8 @@ fn agent_sidebar_honors_priority_symbols_tokens_and_stable_hits() {
          .join("\n");
      assert!(text.contains("× needs input"), "frame: {text}");
      assert!(text.contains("pi two"), "frame: {text}");
@@ -449,11 +449,11 @@ index 5b8b1224..302df4a5 100644
          state
              .hits
 diff --git a/src/client/shell/tests/chrome_context.rs b/src/client/shell/tests/chrome_context.rs
-index ed21bc8a..17071626 100644
+index 1ef9879..0319212 100644
 --- a/src/client/shell/tests/chrome_context.rs
 +++ b/src/client/shell/tests/chrome_context.rs
-@@ -523,3 +523,80 @@ fn close_confirmation_error_becomes_client_owned_overlay_and_stable_group_close(
-             if params.workspace_id == "ws_1" && params.close_group
+@@ -527,3 +527,80 @@ fn close_confirmation_error_becomes_client_owned_overlay_and_stable_workspace_cl
+             if params.workspace_id == "ws_1" && !params.close_group
      ));
  }
 +
@@ -534,7 +534,7 @@ index ed21bc8a..17071626 100644
 +    assert!(top.iter().any(|cell| cell.bg == reset), "{:?}", top.iter().map(|c| c.bg).collect::<Vec<_>>());
 +}
 diff --git a/src/client/terminal_setup.rs b/src/client/terminal_setup.rs
-index 249e29ad..97c886b3 100644
+index 8a0a45e..f630da4 100644
 --- a/src/client/terminal_setup.rs
 +++ b/src/client/terminal_setup.rs
 @@ -28,8 +28,8 @@ use super::frame_output::clear_received_kitty_graphics;
@@ -568,15 +568,15 @@ index 249e29ad..97c886b3 100644
  ) -> io::Result<TerminalGuard> {
      ratatui::init();
      let mut terminal_guard = TerminalGuard {
-@@ -52,6 +56,7 @@ pub(super) fn setup_terminal_with_capabilities(
-         reset_keyboard_enhancements: false,
+@@ -54,6 +58,7 @@ pub(super) fn setup_terminal_with_capabilities(
          reset_modify_other_keys: false,
+         modify_other_keys_sequence: None,
          reset_host_color_scheme_reports: false,
 +        reset_host_colors: false,
          restore_claimed: Arc::new(AtomicBool::new(false)),
          restored: false,
          #[cfg(windows)]
-@@ -121,6 +126,12 @@ pub(super) fn setup_terminal_with_capabilities(
+@@ -123,6 +128,12 @@ pub(super) fn setup_terminal_with_capabilities(
  
      execute!(io::stdout(), DisableLineWrap)?;
  
@@ -586,18 +586,18 @@ index 249e29ad..97c886b3 100644
 +        io::stdout().flush()?;
 +    }
 +
-     terminal_guard.host_escape_disambiguation_active = host_escape_disambiguation_active;
+     terminal_guard.host_escape_disambiguation_active = host_probe.escape_disambiguation;
+     terminal_guard.host_sgr_pixel_mouse = host_probe.sgr_pixel_mouse;
      terminal_guard.buffered_host_input = buffered_host_input;
-     Ok(terminal_guard)
-@@ -137,6 +148,7 @@ pub(super) struct TerminalGuard {
-     reset_keyboard_enhancements: bool,
-     reset_modify_other_keys: bool,
+@@ -143,6 +154,7 @@ pub(super) struct TerminalGuard {
+     /// The modifyOtherKeys sequence written at setup, re-sent on refresh.
+     modify_other_keys_sequence: Option<&'static [u8]>,
      reset_host_color_scheme_reports: bool,
 +    reset_host_colors: bool,
      restore_claimed: Arc<AtomicBool>,
      restored: bool,
      #[cfg(windows)]
-@@ -342,17 +354,51 @@ pub(super) fn write_host_color_scheme_report_mode(
+@@ -403,17 +415,51 @@ pub(super) fn write_host_color_scheme_report_mode(
  pub(super) fn write_terminal_restore_postlude(
      writer: &mut impl io::Write,
      reset_host_color_scheme_reports: bool,
@@ -649,7 +649,7 @@ index 249e29ad..97c886b3 100644
  pub(super) fn should_draw_host_cursor(mode: crate::config::HostCursorModeConfig) -> bool {
      match mode {
          crate::config::HostCursorModeConfig::Auto => {
-@@ -611,6 +657,7 @@ fn restore_terminal_state_once(
+@@ -664,6 +710,7 @@ fn restore_terminal_state_once(
      reset_keyboard_enhancements: bool,
      reset_modify_other_keys: bool,
      reset_host_color_scheme_reports: bool,
@@ -657,7 +657,7 @@ index 249e29ad..97c886b3 100644
      #[cfg(windows)] restore_windows_input_mode: &WindowsInputModeRestore,
  ) -> io::Result<()> {
      if restore_claimed.swap(true, Ordering::AcqRel) {
-@@ -622,6 +669,7 @@ fn restore_terminal_state_once(
+@@ -675,6 +722,7 @@ fn restore_terminal_state_once(
          reset_keyboard_enhancements,
          reset_modify_other_keys,
          reset_host_color_scheme_reports,
@@ -665,7 +665,7 @@ index 249e29ad..97c886b3 100644
          #[cfg(windows)]
          restore_windows_input_mode,
      )
-@@ -631,6 +679,7 @@ fn restore_terminal_state(
+@@ -684,6 +732,7 @@ fn restore_terminal_state(
      reset_keyboard_enhancements: bool,
      reset_modify_other_keys: bool,
      reset_host_color_scheme_reports: bool,
@@ -673,7 +673,7 @@ index 249e29ad..97c886b3 100644
      #[cfg(windows)] restore_windows_input_mode: Option<u32>,
  ) -> io::Result<()> {
      let _ = clear_received_kitty_graphics(&mut io::stdout());
-@@ -662,8 +711,11 @@ fn restore_terminal_state(
+@@ -715,8 +764,11 @@ fn restore_terminal_state(
      }
  
      let restore_result = ratatui::try_restore();
@@ -686,8 +686,8 @@ index 249e29ad..97c886b3 100644
 +    );
  
      #[cfg(windows)]
-     if windows_vti_input_backend_enabled() && windows_win32_input_mode_enabled() {
-@@ -743,6 +795,7 @@ impl TerminalGuard {
+     if windows_win32_input_mode_enabled() {
+@@ -859,6 +911,7 @@ impl TerminalGuard {
          let reset_keyboard_enhancements = self.reset_keyboard_enhancements;
          let reset_modify_other_keys = self.reset_modify_other_keys;
          let reset_host_color_scheme_reports = self.reset_host_color_scheme_reports;
@@ -695,7 +695,7 @@ index 249e29ad..97c886b3 100644
          #[cfg(windows)]
          let restore_windows_input_mode = self.restore_windows_input_mode.clone();
          move || {
-@@ -751,6 +804,7 @@ impl TerminalGuard {
+@@ -867,6 +920,7 @@ impl TerminalGuard {
                  reset_keyboard_enhancements,
                  reset_modify_other_keys,
                  reset_host_color_scheme_reports,
@@ -703,7 +703,7 @@ index 249e29ad..97c886b3 100644
                  #[cfg(windows)]
                  &restore_windows_input_mode,
              );
-@@ -764,6 +818,7 @@ impl TerminalGuard {
+@@ -880,6 +934,7 @@ impl TerminalGuard {
              self.reset_keyboard_enhancements,
              self.reset_modify_other_keys,
              self.reset_host_color_scheme_reports,
@@ -711,7 +711,7 @@ index 249e29ad..97c886b3 100644
              #[cfg(windows)]
              &self.restore_windows_input_mode,
          )
-@@ -778,6 +833,7 @@ impl Drop for TerminalGuard {
+@@ -894,6 +949,7 @@ impl Drop for TerminalGuard {
                  self.reset_keyboard_enhancements,
                  self.reset_modify_other_keys,
                  self.reset_host_color_scheme_reports,
@@ -720,7 +720,7 @@ index 249e29ad..97c886b3 100644
                  &self.restore_windows_input_mode,
              );
 diff --git a/src/client/tests/mod.rs b/src/client/tests/mod.rs
-index 035d00d3..bc851f4f 100644
+index 323af2f..1d50a15 100644
 --- a/src/client/tests/mod.rs
 +++ b/src/client/tests/mod.rs
 @@ -490,10 +490,55 @@ fn color_scheme_reports_are_enabled_only_for_full_clients() {
@@ -790,7 +790,7 @@ index 035d00d3..bc851f4f 100644
      let mut expected = Vec::new();
      expected.extend_from_slice(
 diff --git a/src/config/sidebar.rs b/src/config/sidebar.rs
-index 9a4cb5e0..00e82597 100644
+index 9a4cb5e..00e8259 100644
 --- a/src/config/sidebar.rs
 +++ b/src/config/sidebar.rs
 @@ -427,6 +427,8 @@ pub struct AgentsSidebarConfig {
@@ -837,7 +837,7 @@ index 9a4cb5e0..00e82597 100644
      }
  }
 diff --git a/src/config/theme.rs b/src/config/theme.rs
-index cb9e3498..22fd412d 100644
+index cb9e349..22fd412 100644
 --- a/src/config/theme.rs
 +++ b/src/config/theme.rs
 @@ -69,9 +69,39 @@ pub struct ThemeConfig {
@@ -908,10 +908,10 @@ index cb9e3498..22fd412d 100644
      fn theme_name_parses() {
          let toml = r#"
 diff --git a/src/pane/terminal.rs b/src/pane/terminal.rs
-index 24379d22..50a5fcc5 100644
+index d4b7ef5..80f87d2 100644
 --- a/src/pane/terminal.rs
 +++ b/src/pane/terminal.rs
-@@ -2391,9 +2391,12 @@ impl GhosttyPaneTerminal {
+@@ -2384,9 +2384,12 @@ impl GhosttyPaneTerminal {
              .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
          let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
          let resolved_bg = colors.map(|c| ghostty_color(c.background));
@@ -927,7 +927,7 @@ index 24379d22..50a5fcc5 100644
          let hide_kitty_placeholders = crate::kitty_graphics::is_enabled();
  
          let mut row_iterator = match crate::ghostty::RowIterator::new() {
-@@ -2660,9 +2663,12 @@ fn ghostty_collect_dirty_patch(
+@@ -2674,9 +2677,12 @@ fn ghostty_collect_dirty_patch(
          .and_then(|c| ghostty_default_fg(c.foreground, host_theme, initial_default_foreground));
      let resolved_fg = colors.map(|c| ghostty_color(c.foreground));
      let resolved_bg = colors.map(|c| ghostty_color(c.background));
@@ -943,7 +943,7 @@ index 24379d22..50a5fcc5 100644
      let hide_kitty_placeholders = crate::kitty_graphics::is_enabled();
  
      let Ok(mut row_iterator) = crate::ghostty::RowIterator::new() else {
-@@ -3502,6 +3508,9 @@ fn ghostty_default_fg(
+@@ -3521,6 +3527,9 @@ fn ghostty_default_fg(
      host_theme: crate::terminal_theme::TerminalTheme,
      initial_default_foreground: Option<crate::ghostty::RgbColor>,
  ) -> Option<Color> {
@@ -953,7 +953,7 @@ index 24379d22..50a5fcc5 100644
      if let Some(host_foreground) = host_theme.foreground {
          if host_foreground == terminal_theme_color(color) {
              None
-@@ -3520,6 +3529,9 @@ fn ghostty_default_bg(
+@@ -3539,6 +3548,9 @@ fn ghostty_default_bg(
      host_theme: crate::terminal_theme::TerminalTheme,
      initial_default_background: Option<crate::ghostty::RgbColor>,
  ) -> Option<Color> {
@@ -963,7 +963,7 @@ index 24379d22..50a5fcc5 100644
      if let Some(host_background) = host_theme.background {
          if host_background == terminal_theme_color(color) {
              None
-@@ -3544,18 +3556,20 @@ fn terminal_theme_color(color: crate::ghostty::RgbColor) -> crate::terminal_them
+@@ -3563,18 +3575,20 @@ fn terminal_theme_color(color: crate::ghostty::RgbColor) -> crate::terminal_them
  // Palette entries the program redefined with OSC 4. Forwarding a palette index to the
  // host makes it resolve against the host's own palette, discarding the redefinition.
  // Only overridden entries become RGB; the rest stay indexed and keep following the
@@ -986,7 +986,7 @@ index 24379d22..50a5fcc5 100644
                  overrides[index] = Some(*active);
                  any = true;
              }
-@@ -3688,7 +3702,7 @@ mod tests {
+@@ -3722,7 +3736,7 @@ mod tests {
      #[test]
      fn palette_overrides_are_none_without_an_osc4_write() {
          let default = [rgb(1, 2, 3); 256];
@@ -995,7 +995,7 @@ index 24379d22..50a5fcc5 100644
      }
  
      #[test]
-@@ -3696,7 +3710,7 @@ mod tests {
+@@ -3730,7 +3744,7 @@ mod tests {
          let default = [rgb(1, 2, 3); 256];
          let mut active = default;
          active[18] = rgb(169, 177, 214);
@@ -1004,7 +1004,7 @@ index 24379d22..50a5fcc5 100644
  
          assert_eq!(
              ghostty_cell_color(crate::ghostty::CellColor::Palette(18), Some(&overrides)),
-@@ -3719,7 +3733,7 @@ mod tests {
+@@ -3753,7 +3767,7 @@ mod tests {
          let default = [rgb(1, 2, 3); 256];
          let mut active = default;
          active[18] = rgb(169, 177, 214);
@@ -1013,7 +1013,7 @@ index 24379d22..50a5fcc5 100644
          assert_eq!(
              ghostty_cell_color(
                  crate::ghostty::CellColor::Rgb(rgb(122, 162, 247)),
-@@ -7311,6 +7325,57 @@ mod tests {
+@@ -7499,6 +7513,57 @@ mod tests {
          assert_eq!(buffer[(2, 0)].style().bg, Some(Color::Reset));
      }
  
@@ -1072,7 +1072,7 @@ index 24379d22..50a5fcc5 100644
      fn render_keeps_explicit_default_foreground_when_it_differs_from_host() {
          let (tx, _rx) = mpsc::channel(4);
 diff --git a/src/terminal_theme.rs b/src/terminal_theme.rs
-index 2460731e..a1a2eea9 100644
+index 2460731..a1a2eea 100644
 --- a/src/terminal_theme.rs
 +++ b/src/terminal_theme.rs
 @@ -36,6 +36,9 @@ pub struct TerminalTheme {
@@ -1137,10 +1137,10 @@ index 2460731e..a1a2eea9 100644
      fn parses_st_terminated_rgb_response() {
          let parsed = parse_default_color_response("\x1b]10;rgb:cccc/dddd/eeee\x1b\\");
 diff --git a/src/ui/panes.rs b/src/ui/panes.rs
-index adf1f3d3..924af6dc 100644
+index 6a91f18..1ca0460 100644
 --- a/src/ui/panes.rs
 +++ b/src/ui/panes.rs
-@@ -392,6 +392,13 @@ pub(super) fn render_panes(
+@@ -489,6 +489,13 @@ pub(super) fn render_panes(
      pane_infos: &[PaneInfo],
      split_borders: &[crate::layout::SplitBorder],
  ) {
@@ -1154,7 +1154,7 @@ index adf1f3d3..924af6dc 100644
      let Some(target) = target else {
          return;
      };
-@@ -502,7 +509,7 @@ fn render_pane_borders(
+@@ -599,7 +606,7 @@ fn render_pane_borders(
          let color = if focused {
              app.palette.accent
          } else {
@@ -1163,7 +1163,7 @@ index adf1f3d3..924af6dc 100644
          };
          cell.set_style(Style::default().fg(color));
      }
-@@ -1206,7 +1213,38 @@ mod tests {
+@@ -1303,7 +1310,38 @@ mod tests {
  
          let buffer = terminal.backend().buffer();
          assert_eq!(buffer[(1, 1)].style().fg, Some(app.palette.accent));
