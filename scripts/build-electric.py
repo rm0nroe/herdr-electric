@@ -51,9 +51,13 @@ def prepare_ghostty(work, source):
         if package['name'] not in needed:
             continue
         print(f"Fetching Zig dependency {package['name']}", flush=True)
-        archive = work / (package['name'] + '.tar.gz')
-        run(['curl', '--fail', '--location', '--silent', '--show-error', '--max-time', '90', '--retry', '2',
-             '--output', str(archive), package['url']], root)
+        if package['name'] == 'translate_c':
+            # The pinned Codeberg archive repeatedly stalls on clean macOS runners.
+            archive = REPO / 'scripts/vendor/translate-c-4e879eb8.tar.gz'
+        else:
+            archive = work / (package['name'] + '.tar.gz')
+            run(['curl', '--fail', '--location', '--silent', '--show-error', '--max-time', '90', '--retry', '2',
+                 '--output', str(archive), package['url']], root)
         actual = subprocess.check_output([os.environ.get('ZIG', 'zig'), 'fetch', str(archive)], cwd=root, text=True).strip()
         if actual != expected:
             raise ValueError(f"Zig package checksum mismatch: {package['name']}")
