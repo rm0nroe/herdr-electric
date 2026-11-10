@@ -29,8 +29,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-The README banner (assets/banner.svg) draws the HERDR wordmark from the Rye
-typeface by Sorkin Type Co, converted to outlines.
-Source: https://github.com/google/fonts/tree/main/ofl/rye
-Rye is licensed under the SIL Open Font License, Version 1.1; the full license
-is in assets/OFL-Rye.txt.
+The README banner (assets/banner.svg) draws the HERDR wordmark from the Anton
+typeface by the Anton Project Authors, converted to outlines.
+Source: https://github.com/google/fonts/tree/main/ofl/anton
+Anton is licensed under the SIL Open Font License, Version 1.1; the full license
+is in assets/OFL-anton.txt.

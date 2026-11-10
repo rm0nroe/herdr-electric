@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/rm0nroe/herdr-electric/main/assets/banner.svg" alt="herdr-electrified: reversible Herdr appearance, plus custom Herdr and Codex renderers" width="100%">
+  <img src="https://raw.githubusercontent.com/rm0nroe/herdr-electric/main/assets/banner.svg" alt="herdr-electrified: reversible Herdr appearance, plus custom Herdr and Codex renderers" width="100%"><br>
+  <em>Reversible by design.</em>
 </p>
 
 # Herdr Electrified
@@ -266,7 +267,7 @@ The tests use temporary configs. The native check only runs `config check`. Add 
 ## License
 
 Apache-2.0, see [LICENSE](https://github.com/rm0nroe/herdr-electric/blob/main/LICENSE). Colors from
-[Catppuccin](https://github.com/catppuccin/catppuccin) (MIT) and the Rye
+[Catppuccin](https://github.com/catppuccin/catppuccin) (MIT) and the Anton
 wordmark (SIL OFL 1.1) are credited in [NOTICE](https://github.com/rm0nroe/herdr-electric/blob/main/NOTICE). The Electric archive
 includes third-party notices under `licenses/`. This project is independent of
 the Herdr, Codex and Claude maintainers.
