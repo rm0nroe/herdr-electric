@@ -49,9 +49,6 @@ class Upgrade(unittest.TestCase):
         self.bundles = self.root / '.local/share/herdr-electrified/bundles'
         self.notice = self.root / '.local/share/herdr-electrified/update-notice'
         self.ps('')
-        running = unittest.mock.patch('herdr_electrified.electric.running', return_value=False)
-        self.running = running.start()
-        self.addCleanup(running.stop)
 
     def release(self, tag, extra=None):
         """Serve the latest-release answer and the pinned bundle."""
@@ -84,6 +81,22 @@ class Upgrade(unittest.TestCase):
         return {'PATH': f'{stubs}:{self.env["PATH"]}'}
 
     # Update notice
+
+    def test_rate_limited_lookup_accepts_only_this_repos_stable_release_redirect(self):
+        base = f'https://github.com/{electric.REPO}/releases/'
+        for url, valid in [(base + 'tag/v2.3.4', True), (base + 'tag/v2.3.4-rc1', False),
+                           ('https://github.com/another/project/releases/tag/v2.3.4', False)]:
+            with self.subTest(url=url):
+                response = unittest.mock.MagicMock()
+                response.__enter__.return_value.geturl.return_value = url
+                limit = electric.HTTPError(electric.LATEST_URL, 403, 'rate limited', {}, None)
+                with unittest.mock.patch.object(electric, 'urlopen', side_effect=[limit, response]) as fetch:
+                    if valid:
+                        self.assertEqual(electric.latest_release(), 'v2.3.4')
+                    else:
+                        with self.assertRaises(ValueError):
+                            electric.latest_release()
+                    self.assertEqual(fetch.call_args.args[0].full_url, base + 'latest')
 
     def test_check_records_a_notice_only_when_a_newer_release_exists(self):
         self.release('v99.0.0')
@@ -324,42 +337,82 @@ class Upgrade(unittest.TestCase):
         self.assertIn('herdr-electrified install', result['notice'])
         self.assertFalse(self.bundles.exists())
 
-    # Restart
+    # Live handoff
 
-    def test_running_electric_on_an_old_bundle_gets_a_restart_instruction(self):
+    def test_upgrade_hands_off_from_inside_a_pane_and_prunes_only_after_success(self):
+        self.release('v' + __version__)
+        self.assertEqual(self.run_cli('install', '--yes')[0], 0)
+        old = self.old_bundle('0.9.0')
+        busy = self.old_bundle('0.10.0')
+        self.ps(f'{old}/herdr server\n{busy}/codex/bin/codex\n')
+
+        def transfer(session, launcher, current, previous):
+            self.assertTrue(old.exists())
+            self.assertEqual(session, self.root / 'config/herdr/sessions/herdr-electrified')
+            self.assertEqual(current, (self.bundles / electric.BUNDLE).resolve())
+            self.ps(f'{current}/herdr server\n{busy}/codex/bin/codex\n')
+            return True
+
+        with unittest.mock.patch.object(electric, 'live_handoff', side_effect=transfer):
+            code, result = self.run_cli('upgrade', '--yes', env={'HERDR_ENV': '1'})
+        self.assertEqual(code, 0, result)
+        self.assertIn('panes are still running', result['handoff'])
+        self.assertEqual(result['removed'], [old.name])
+        self.assertTrue(busy.exists())
+
+    def test_failed_handoff_never_prompts_to_stop_or_prunes_the_live_bundle(self):
         self.release('v' + __version__)
         self.assertEqual(self.run_cli('install', '--yes')[0], 0)
         old = self.old_bundle('0.9.0')
         self.ps(f'{old}/herdr server\n')
-        self.running.return_value = True
-        code, result = self.run_cli('upgrade', '--yes')
-        self.assertEqual(code, 0, result)
-        self.assertTrue(old.exists())
-        self.assertIn('herdr-electric server stop', result['restart'])
+        with unittest.mock.patch.object(electric, 'live_handoff', side_effect=TimeoutError('timed out')):
+            code, result = self.run_cli('upgrade', stdin=TTY('yes\nyes\n'))
+        self.assertEqual(code, 1, result)
+        self.assertIn('live handoff not confirmed: timed out', result['error'])
         self.assertFalse(any(call.endswith('server stop') for call in self.calls()))
+        self.assertTrue(old.exists())
 
-    def test_restart_asks_and_relaunches_when_answered_yes(self):
-        self.release('v' + __version__)
-        self.assertEqual(self.run_cli('install', '--yes')[0], 0)
-        old = self.old_bundle('0.9.0')
-        self.ps(f'{old}/herdr server\n')
-        self.running.return_value = True
-        launcher = str((self.root / '.local/bin/herdr-electric').resolve())
-        with unittest.mock.patch('herdr_electrified.cli.os.execv', side_effect=SystemExit(0)) as execv, self.assertRaises(SystemExit):
-            self.run_cli('upgrade', stdin=TTY('y\ny\n'))
-        self.assertTrue(self.calls()[-1].endswith('server stop'))
-        execv.assert_called_once_with(launcher, [launcher])
+    def test_handoff_checks_the_socket_owner_before_requesting_a_transfer(self):
+        from unittest.mock import patch
+        current = (self.bundles / electric.BUNDLE).resolve()
+        previous = self.old_bundle('0.10.0')
+        (self.root / 'herdr.sock').touch()
+        with patch.object(electric.socket, 'socket'), patch.object(electric, '_peer_binary') as peer, \
+                patch.object(electric.subprocess, 'check_output') as status:
+            peer.return_value = current / 'herdr'
+            self.assertFalse(electric.live_handoff(self.root, self.bin, current, previous))
+            peer.return_value = self.bin
+            with self.assertRaisesRegex(ValueError, 'not served by an Electric bundle'):
+                electric.live_handoff(self.root, self.bin, current, previous)
+            status.assert_not_called()
+            peer.return_value = (previous / 'herdr').resolve()
+            server = {'session': 'herdr-electrified', 'socket': str(self.root / 'herdr.sock'), 'capabilities': {}}
+            status.return_value = json.dumps(server)
+            with self.assertRaisesRegex(ValueError, 'does not support'):
+                electric.live_handoff(self.root, self.bin, current, previous)
+            status.return_value = json.dumps(dict(server, socket='/other/session'))
+            with self.assertRaisesRegex(ValueError, 'different session'):
+                electric.live_handoff(self.root, self.bin, current, previous)
 
-    def test_no_restart_offer_inside_a_herdr_pane(self):
-        self.release('v' + __version__)
-        self.assertEqual(self.run_cli('install', '--yes')[0], 0)
-        self.ps(f'{self.old_bundle("0.9.0")}/herdr server\n')
-        self.running.return_value = True
-        with unittest.mock.patch('herdr_electrified.cli.os.execv') as execv:
-            code, result = self.run_cli('upgrade', stdin=TTY('y\n'), env={'HERDR_ENV': '1'})
-        self.assertEqual(code, 0, result)
-        self.assertIn('herdr-electric server stop', result['restart'])
-        execv.assert_not_called()
+    def test_server_rejection_is_not_retried_or_reported_as_success(self):
+        from unittest.mock import patch
+        current = (self.bundles / electric.BUNDLE).resolve()
+        previous = self.old_bundle('0.10.0').resolve()
+        endpoint = self.root / 'herdr.sock'
+        endpoint.touch()
+        statuses = [dict(socket=str(endpoint), capabilities={'live_handoff': True}),
+                    dict(binary=str(current / 'herdr'), version='0.9.5', protocol=22)]
+        with patch.object(electric.socket, 'socket') as socket, patch.object(electric, '_peer_binary', return_value=previous / 'herdr'), \
+                patch.object(electric.subprocess, 'check_output', side_effect=[
+                    json.dumps(dict(status, session='herdr-electrified')) for status in statuses]):
+            sock = socket.return_value.__enter__.return_value
+            sock.makefile.return_value = io.BytesIO(b'{"id":"electric:upgrade","error":{"message":"import failed"}}\n')
+            with self.assertRaisesRegex(ValueError, 'import failed'):
+                electric.live_handoff(self.root, self.bin, current, previous)
+            sock.sendall.assert_called_once()
+            request = json.loads(sock.sendall.call_args.args[0])
+            self.assertEqual(request['method'], 'server.live_handoff')
+            self.assertEqual(request['params'], dict(import_exe=str(current / 'herdr'), expected_version='0.9.5', expected_protocol=22))
 
     def test_upgrade_rejects_install_options(self):
         with self.assertRaises(SystemExit), unittest.mock.patch('sys.stderr', io.StringIO()):
