@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/rm0nroe/herdr-electrified/main/assets/banner.svg" alt="herdr-electrified: reversible Herdr appearance, plus custom Herdr and Codex renderers" width="100%"><br>
+  <img src="https://raw.githubusercontent.com/rm0nroe/herdr-electric/main/assets/banner.svg" alt="herdr-electrified: reversible Herdr appearance, plus custom Herdr and Codex renderers" width="100%"><br>
   <em>Reversible by design.</em>
 </p>
 
