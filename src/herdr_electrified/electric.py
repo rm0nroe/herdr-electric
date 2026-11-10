@@ -4,6 +4,7 @@ import hashlib
 import json
 import platform
 import plistlib
+import re
 import shlex
 import shutil
 import socket
@@ -14,7 +15,8 @@ import os
 import tarfile
 import tempfile
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 from . import __version__
 from . import config as c
@@ -86,8 +88,19 @@ def fetch_bundle():
 
 def latest_release():
     """The newest published release tag (drafts and pre-releases excluded)."""
-    with urlopen(LATEST_URL, timeout=10) as response:
-        return json.load(response)['tag_name']
+    try:
+        with urlopen(LATEST_URL, timeout=10) as response:
+            return json.load(response)['tag_name']
+    except HTTPError as error:
+        if error.code not in (403, 429):
+            raise
+        error.close()
+    base = f'https://github.com/{REPO}/releases/'
+    with urlopen(Request(base + 'latest', method='HEAD'), timeout=10) as response:
+        tag = re.fullmatch(re.escape(base + 'tag/') + r'(v[0-9]+\.[0-9]+\.[0-9]+)', response.geturl())
+        if not tag:
+            raise ValueError('GitHub did not redirect to a stable release in the project repository')
+        return tag[1]
 
 
 def notice_path():
@@ -277,6 +290,75 @@ def running(session=None):
         except OSError:
             return True  # cannot probe (for example path too long): assume live, never delete a live session
     return True
+
+
+def _peer_binary(sock):
+    # Darwin SOL_LOCAL / LOCAL_PEERPID identifies the server on this exact connection.
+    pid = sock.getsockopt(0, 2)
+    name = subprocess.check_output(['/bin/ps', '-ww', '-p', str(pid), '-o', 'comm='], text=True, timeout=5).strip()
+    if not Path(name).is_absolute():
+        raise ValueError('could not identify the running Electric binary')
+    return Path(name).resolve()
+
+
+def live_handoff(session, launcher, current, previous):
+    """Transfer only the recorded Electric session to the verified install. Never stop it."""
+    endpoint = session / 'herdr.sock'
+    if not endpoint.exists():
+        return False
+    target = (current / 'herdr').resolve()
+    with socket.socket(socket.AF_UNIX) as sock:
+        sock.settimeout(240)  # Herdr’s own live update request timeout.
+        try:
+            sock.connect(str(endpoint))
+        except (FileNotFoundError, ConnectionRefusedError):
+            return False
+        source = _peer_binary(sock)
+        if source == target:
+            return False
+        if source != (previous / 'herdr').resolve() and not (
+                source.parent.parent == (store() / 'bundles').resolve()
+                and source.match('herdr-electrified-*-macos-arm64/herdr')):
+            raise ValueError('the recorded socket is not served by an Electric bundle')
+
+        def status(which):
+            info = json.loads(subprocess.check_output([str(launcher), 'status', which, '--json'],
+                              stdin=subprocess.DEVNULL, text=True, timeout=10))
+            if not isinstance(info, dict) or info.get('session') != 'herdr-electrified':
+                raise ValueError(f'unrecognized Electric {which} status')
+            return info
+
+        server = status('server')
+        if Path(server.get('socket') or '').resolve() != endpoint.resolve():
+            raise ValueError('the launcher points to a different session socket')
+        if not isinstance(server.get('capabilities'), dict) or server['capabilities'].get('live_handoff') is not True:
+            raise ValueError('the running server does not support live handoff')
+        client = status('client')
+        if (Path(client.get('binary') or '').resolve() != target or not isinstance(client.get('version'), str)
+                or not client['version'] or type(client.get('protocol')) is not int):
+            raise ValueError('could not confirm the target binary, version and protocol')
+        request = {'id': 'electric:upgrade', 'method': 'server.live_handoff',
+                   'params': {'import_exe': str(target), 'expected_version': client['version'],
+                              'expected_protocol': client['protocol']}}
+        sock.sendall(json.dumps(request).encode() + b'\n')
+        with sock.makefile('rb') as reader:
+            reply = json.loads(reader.readline(65536))
+        if not isinstance(reply, dict) or reply.get('id') != request['id'] or 'error' in reply or 'result' not in reply:
+            raise ValueError(f'handoff rejected: {reply}')
+
+    # An acknowledgement alone does not prove the replacement took ownership of the socket.
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        with socket.socket(socket.AF_UNIX) as probe:
+            probe.settimeout(1)
+            try:
+                probe.connect(str(endpoint))
+                if _peer_binary(probe) == target:
+                    return True
+            except (FileNotFoundError, ConnectionRefusedError, TimeoutError, subprocess.CalledProcessError):
+                pass
+        time.sleep(0.1)
+    raise ValueError('the new binary did not take ownership of the session socket')
 
 
 def prune(record, extra_dirs=()):

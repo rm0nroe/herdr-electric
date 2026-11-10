@@ -48,7 +48,7 @@ With uv:
 ```sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
-uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.0
+uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.1
 herdr-electrified install
 ```
 
@@ -77,10 +77,11 @@ For uv installations, `upgrade` updates the CLI automatically. It then reapplies
 whatever you installed (Electric or settings-only, with the options you chose)
 and asks before writing each one, like `install`. It also moves a Herdr plugin
 installed from this repository to the same release and removes old Electric
-bundles that nothing is running from. If Herdr Electric is still running an
-older bundle, `upgrade` offers to restart it. Restarting closes its panes and
-Herdr reopens your agent conversations. Inside a Herdr pane it prints the
-restart command instead, since stopping the server would end the upgrade.
+bundles that nothing is running from. If the Electric server is running an older
+bundle, `upgrade` hands its panes to the new binary. Shells and jobs keep running, even when you run
+the upgrade from a pane. If your terminal window detaches, run `herdr-electric`
+to reconnect. If the handoff cannot be confirmed, the command reports it and
+never stops the server.
 `herdr-electrified upgrade --check` reports whether a newer release exists and
 removes old Electric bundles that nothing is running from; it installs nothing.
 
@@ -94,7 +95,7 @@ v1.8.0 and earlier have no `upgrade`. To leave them, rerun the install with the
 new tag:
 
 ```sh
-uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.0 && herdr-electrified install
+uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.1 && herdr-electrified install
 ```
 
 ### Manual install
@@ -103,8 +104,8 @@ To verify the archive yourself:
 
 ```sh
 mkdir -p ~/.local/share/herdr-electrified/bundles && cd ~/.local/share/herdr-electrified/bundles
-curl -fLO https://github.com/rm0nroe/herdr-electric/releases/download/v1.10.0/herdr-electrified-0.11.0-macos-arm64.tar.gz
-curl -fLO https://github.com/rm0nroe/herdr-electric/releases/download/v1.10.0/SHA256SUMS
+curl -fLO https://github.com/rm0nroe/herdr-electric/releases/download/v1.10.1/herdr-electrified-0.11.0-macos-arm64.tar.gz
+curl -fLO https://github.com/rm0nroe/herdr-electric/releases/download/v1.10.1/SHA256SUMS
 shasum -a 256 -c SHA256SUMS
 gh attestation verify herdr-electrified-0.11.0-macos-arm64.tar.gz --repo rm0nroe/herdr-electric
 tar -xzf herdr-electrified-0.11.0-macos-arm64.tar.gz
@@ -171,7 +172,7 @@ get this; use `codex-electric`, or run
 For stock Herdr on PATH, without the bundle:
 
 ```sh
-uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.0
+uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@v1.10.1
 herdr-electrified install --settings-only
 ```
 
@@ -218,7 +219,7 @@ Details on targets, conflicts and recovery are in [reference](https://github.com
 ## Herdr plugin
 
 ```sh
-herdr-electric plugin install rm0nroe/herdr-electric/plugin --ref v1.10.0 --yes
+herdr-electric plugin install rm0nroe/herdr-electric/plugin --ref v1.10.1 --yes
 ```
 
 Install the appearance first; the plugin only previews, checks and undoes it.

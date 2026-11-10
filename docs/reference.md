@@ -162,16 +162,14 @@ before the first prompt. Bash and fish panes do not get this. There, if
 `command -v codex` does not point at `~/.local/share/herdr-electrified/commands/codex`,
 use `codex-electric` directly; for Claude, run
 `~/.local/share/herdr-electrified/commands/claude`. Shell profiles are never edited.
-After an upgrade, restart a running Electric server so new panes pick up the
-launcher's environment; `herdr-electrified upgrade` offers to (see
-[Upgrade](#upgrade)).
+A live upgrade keeps the existing shells and their environment. To pick up
+changes to launcher environment variables, start a fresh session when your
+jobs are finished (see [Upgrade](#upgrade)).
 
 Codex uses the `CODEX_HOME` selected at installation, or your existing `~/.codex`.
 Settings, authentication, and session history remain shared. The launcher selects
 `herdr-electric` with a command-line theme override; global Codex configuration
-is not rewritten. Stop and restart your own Electric session when changing the
-bundle. The installer does not restart running sessions or request reloads from
-stock sessions.
+is not rewritten. Live upgrades target only the recorded Electric session.
 
 OpenCode reads custom themes only from its own config directory, so Electric adds
 `herdr-electrified.json` to `${XDG_CONFIG_HOME:-~/.config}/opencode/themes`, where it
@@ -185,7 +183,8 @@ still wins over the theme selection. Undo removes all three files.
 
 `herdr-electrified upgrade` asks GitHub for the latest release
 (`api.github.com/repos/rm0nroe/herdr-electric/releases/latest`; drafts and
-pre-releases never count). For a Homebrew install, run
+pre-releases never count). If the API rate-limits the lookup, the CLI follows
+the project’s public latest-release link. For a Homebrew install, run
 `brew upgrade rm0nroe/tap/herdr-electrified`, then `herdr-electrified upgrade`
 to reapply your recorded settings. When a uv install is behind, the CLI runs
 `uv tool install --python 3.12 git+https://github.com/rm0nroe/herdr-electric@<tag>`
@@ -209,10 +208,14 @@ The rest needs no new release and runs every time:
   one when no running process was started from them. If the process list cannot
   be read, nothing is removed. `undo` and settings-only installs never remove
   bundles.
-- Restart: when Herdr Electric is running and the install changed Electric's
-  files or an old bundle is still in use, `upgrade` asks before running
-  `herdr-electric server stop` and relaunching. It never asks inside a Herdr
-  pane or with `--yes`; it prints the commands instead.
+- Live handoff: if the recorded Electric socket belongs to an older Electric
+  binary, `upgrade` asks it to transfer its live panes to the verified new
+  binary and confirms the replacement owns the socket. An already-current
+  server stays running. If your client detaches, run `herdr-electric` to
+  reconnect. If the server lacks handoff support or the transfer cannot be
+  confirmed, the command reports an error and never stops the server. Check
+  `herdr-electric status server --json` before retrying. A settings-only
+  upgrade or `upgrade --check` never requests a handoff.
 
 The update notice lives in `~/.local/share/herdr-electrified/update-notice`. A
 bare `herdr-electric` prints it, and when the file is older than a day it runs

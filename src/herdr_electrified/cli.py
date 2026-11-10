@@ -513,18 +513,19 @@ def upgrade(args):
     except (OSError, ValueError, KeyError, IndexError, subprocess.SubprocessError) as error:
         result['plugin_error'] = (f'Could not update the Herdr plugin ({error}); run: '
                                   + shlex.join([*herdr, 'plugin', 'install', f'{electric.REPO}/plugin', '--ref', f'v{__version__}', '--yes']))
-    if root and electric.running(electric.recorded_session(data['electric'])):
-        # Bundles still on disk after pruning are in use: the running server predates this install.
+    if root:
         current = Path(c.load_receipt(c.receipt_path())['electric']['root'])
-        stale = [p for p in current.parent.glob('herdr-electrified-*-macos-arm64') if p.resolve() != current.resolve()]
-        if stale or any(row.get('saved') for row in result['installs'][0]['targets']):
-            result['restart'] = 'Restart Herdr Electric to finish: herdr-electric server stop, then herdr-electric (it reopens your agent panes).'
-            # Stopping the server from inside one of its panes would kill this command before the relaunch.
-            if sys.stdin.isatty() and not args.yes and os.environ.get('HERDR_ENV') != '1':
-                if ask('Restart Herdr Electric now? Its panes close and reopen. [y/N] ') in ('y', 'yes'):
-                    subprocess.run([str(launcher), 'server', 'stop'], stdin=subprocess.DEVNULL, timeout=60, check=True)
-                    sys.stdout.flush()
-                    os.execv(str(launcher), [str(launcher)])
+        session = electric.recorded_session(data['electric'])
+        if session:
+            try:
+                transferred = electric.live_handoff(session, launcher, current, Path(root))
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                result['error'] = (f'Settings installed; live handoff not confirmed: {error}. No stop was requested. '
+                                   'Check herdr-electric status server --json before retrying herdr-electrified upgrade.')
+                return result, 1
+            if transferred:
+                result['handoff'] = 'Electric upgraded live. Your panes are still running. If the window detached, reopen it with herdr-electric.'
+                result['removed'] += electric.prune_bundles(current)
     return result, 0
 
 
@@ -569,7 +570,7 @@ def sync_plugin(herdr):
 
 def upgrade_text(result):
     lines = [result['error']] if 'error' in result else []
-    lines += [result[key] for key in ('notice', 'plugin_error') if result.get(key)]
+    lines += [result[key] for key in ('notice', 'plugin_error', 'handoff') if result.get(key)]
     if result.get('plugin'):
         lines.append(f"Herdr plugin updated to {result['plugin']}.")
     if result.get('removed'):
